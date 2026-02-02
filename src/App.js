@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 
 function App() {
@@ -56,10 +55,37 @@ function App() {
   };
 
   // -----------------------------
+  // Constraint validation
+  // -----------------------------
+  const validateConstraints = () => {
+    const clay = parseFloat(inputs.Clay_Content);
+    const silt = parseFloat(inputs.Silt_Content);
+    const ll = parseFloat(inputs.LL);
+    const pl = parseFloat(inputs.PL);
+    const mixing = parseFloat(inputs.Mixing);
+
+    if (clay + silt <= 50 || clay + silt > 100) {
+    alert("Clay + Silt must be greater than 50 and less than or equal to 100%");
+    return false;
+  }
+
+    if (mixing > 12) {
+      alert("Mixing cannot be more than 12%");
+      return false;
+    }
+
+    // Auto-calculate PI
+    const pi = ll - pl;
+    setInputs((prev) => ({ ...prev, PI: pi }));
+
+    return true;
+  };
+
+  // -----------------------------
   // Predict UCS
   // -----------------------------
   const predictUCS = async () => {
-    // Validation
+    // Validation: all inputs must be filled
     for (let key in inputs) {
       if (inputs[key] === "") {
         alert(`Please enter a value for ${key}`);
@@ -67,17 +93,14 @@ function App() {
       }
     }
 
+    // Check constraints
+    if (!validateConstraints()) return;
+
     setLoading(true);
 
     try {
-      // -----------------------------
-      // Replace this with your ngrok URL
-      // -----------------------------
-      const NGROK_URL = "https://247b140a-78a5-40ca-aeb5-107005428cbc-00-1gqdyd4psx6zz.sisko.replit.dev/predict";
-
-
-
-
+      const NGROK_URL =
+        "https://247b140a-78a5-40ca-aeb5-107005428cbc-00-1gqdyd4psx6zz.sisko.replit.dev/predict";
 
       const response = await fetch(NGROK_URL, {
         method: "POST",
@@ -149,6 +172,7 @@ function App() {
                 borderRadius: "5px",
                 border: "1px solid #ccc",
               }}
+              disabled={key === "PI"} // PI is auto-calculated
             />
           </div>
         ))}
