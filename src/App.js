@@ -21,6 +21,7 @@ function App() {
     Water_Content: "",
   });
 
+  const [errors, setErrors] = useState({});
   const [ucs, setUcs] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,43 @@ function App() {
   // Handle input changes
   // -----------------------------
   const handleChange = (e) => {
-    setInputs({ ...inputs, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const val = value === "" ? "" : parseFloat(value);
+    let newInputs = { ...inputs, [name]: val };
+    let newErrors = { ...errors };
+
+    // Auto-calculate PI if LL or PL changes
+    if (name === "LL" || name === "PL") {
+      if (newInputs.LL !== "" && newInputs.PL !== "") {
+        newInputs.PI = newInputs.LL - newInputs.PL;
+      } else {
+        newInputs.PI = "";
+      }
+    }
+
+    // Validate Clay + Silt
+    if (name === "Clay_Content" || name === "Silt_Content") {
+      if (newInputs.Clay_Content !== "" && newInputs.Silt_Content !== "") {
+        const sum = newInputs.Clay_Content + newInputs.Silt_Content;
+        if (sum < 50 || sum > 100) {
+          newErrors.Clay_Silt = "Clay + Silt must be >50 and <=100";
+        } else {
+          delete newErrors.Clay_Silt;
+        }
+      }
+    }
+
+    // Validate Mixing
+    if (name === "Mixing") {
+      if (val > 12) {
+        newErrors.Mixing = "Mixing cannot be more than 12%";
+      } else {
+        delete newErrors.Mixing;
+      }
+    }
+
+    setInputs(newInputs);
+    setErrors(newErrors);
   };
 
   // -----------------------------
@@ -51,34 +88,8 @@ function App() {
       Curing_Days: "",
       Water_Content: "",
     });
+    setErrors({});
     setUcs(null);
-  };
-
-  // -----------------------------
-  // Constraint validation
-  // -----------------------------
-  const validateConstraints = () => {
-    const clay = parseFloat(inputs.Clay_Content);
-    const silt = parseFloat(inputs.Silt_Content);
-    const ll = parseFloat(inputs.LL);
-    const pl = parseFloat(inputs.PL);
-    const mixing = parseFloat(inputs.Mixing);
-
-    if (clay + silt <= 50 || clay + silt > 100) {
-    alert("Clay + Silt must be greater than 50 and less than or equal to 100%");
-    return false;
-  }
-
-    if (mixing > 12) {
-      alert("Mixing cannot be more than 12%");
-      return false;
-    }
-
-    // Auto-calculate PI
-    const pi = ll - pl;
-    setInputs((prev) => ({ ...prev, PI: pi }));
-
-    return true;
   };
 
   // -----------------------------
@@ -87,14 +98,17 @@ function App() {
   const predictUCS = async () => {
     // Validation: all inputs must be filled
     for (let key in inputs) {
-      if (inputs[key] === "") {
+      if (inputs[key] === "" && key !== "PI") {
         alert(`Please enter a value for ${key}`);
         return;
       }
     }
 
     // Check constraints
-    if (!validateConstraints()) return;
+    if (Object.keys(errors).length > 0) {
+      alert(Object.values(errors).join("\n"));
+      return;
+    }
 
     setLoading(true);
 
@@ -165,18 +179,31 @@ function App() {
               name={key}
               value={inputs[key]}
               onChange={handleChange}
+              readOnly={key === "PI"} // PI auto-calculated
               style={{
                 width: "100%",
                 padding: "8px",
                 fontSize: "16px",
                 borderRadius: "5px",
-                border: "1px solid #ccc",
+                border:
+                  (key === "Clay_Content" || key === "Silt_Content") &&
+                  errors.Clay_Silt
+                    ? "2px solid red"
+                    : key === "Mixing" && errors.Mixing
+                    ? "2px solid red"
+                    : "1px solid #ccc",
               }}
-              disabled={key === "PI"} // PI is auto-calculated
             />
           </div>
         ))}
       </div>
+
+      {/* Show error messages */}
+      {Object.keys(errors).map((err) => (
+        <p key={err} style={{ color: "red", marginTop: "10px" }}>
+          {errors[err]}
+        </p>
+      ))}
 
       <div style={{ marginTop: "25px", display: "flex", gap: "15px" }}>
         <button
