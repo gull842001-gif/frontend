@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 function App() {
   // -----------------------------
@@ -21,76 +21,94 @@ function App() {
     Water_Content: "",
   });
 
+  const [errors, setErrors] = useState({});
   const [ucs, setUcs] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // -----------------------------
-  // Validation errors
-  // -----------------------------
-  const [errors, setErrors] = useState({
-    claySilt: "",
-    mixing: "",
-  });
 
   // -----------------------------
   // Handle input changes
   // -----------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setInputs((prev) => ({ ...prev, [name]: value }));
+    const val = value === "" ? "" : parseFloat(value);
+    let newInputs = { ...inputs, [name]: val };
+    let newErrors = { ...errors };
+
+    // Auto-calculate PI if LL or PL changes
+    if (name === "LL" || name === "PL") {
+      if (newInputs.LL !== "" && newInputs.PL !== "") {
+        newInputs.PI = newInputs.LL - newInputs.PL;
+      } else {
+        newInputs.PI = "";
+      }
+    }
+
+    // Validate Clay + Silt
+    if (name === "Clay_Content" || name === "Silt_Content") {
+      if (newInputs.Clay_Content !== "" && newInputs.Silt_Content !== "") {
+        const sum = newInputs.Clay_Content + newInputs.Silt_Content;
+        if (sum < 50 || sum > 100) {
+          newErrors.Clay_Silt = "Clay + Silt must be >50 and <=100";
+        } else {
+          delete newErrors.Clay_Silt;
+        }
+      }
+    }
+
+    // Validate Mixing
+    if (name === "Mixing") {
+      if (val > 12) {
+        newErrors.Mixing = "Mixing cannot be more than 12%";
+      } else {
+        delete newErrors.Mixing;
+      }
+    }
+
+    setInputs(newInputs);
+    setErrors(newErrors);
   };
 
   // -----------------------------
-  // Auto-calculate PI
+  // Reset inputs & result
   // -----------------------------
-  useEffect(() => {
-    const ll = parseFloat(inputs.LL);
-    const pl = parseFloat(inputs.PL);
-    if (!isNaN(ll) && !isNaN(pl)) {
-      setInputs((prev) => ({ ...prev, PI: ll - pl }));
-    } else {
-      setInputs((prev) => ({ ...prev, PI: "" }));
-    }
-  }, [inputs.LL, inputs.PL]);
-
-  // -----------------------------
-  // Constraint validation
-  // -----------------------------
-  const validateConstraints = () => {
-    const clay = parseFloat(inputs.Clay_Content);
-    const silt = parseFloat(inputs.Silt_Content);
-    const mixing = parseFloat(inputs.Mixing);
-
-    let valid = true;
-    let newErrors = { claySilt: "", mixing: "" };
-
-    if (isNaN(clay) || isNaN(silt) || clay + silt <= 50 || clay + silt > 100) {
-      newErrors.claySilt = "Clay + Silt must be >50 and <=100";
-      valid = false;
-    }
-
-    if (!isNaN(mixing) && mixing > 12) {
-      newErrors.mixing = "Mixing cannot be more than 12%";
-      valid = false;
-    }
-
-    setErrors(newErrors);
-    return valid;
+  const handleReset = () => {
+    setInputs({
+      Clay_Content: "",
+      Silt_Content: "",
+      LL: "",
+      PL: "",
+      PI: "",
+      SiO2: "",
+      Al2O3: "",
+      Fe2O3: "",
+      MgO: "",
+      CaO: "",
+      CaO_lime: "",
+      Mixing: "",
+      Curing_Days: "",
+      Water_Content: "",
+    });
+    setErrors({});
+    setUcs(null);
   };
 
   // -----------------------------
   // Predict UCS
   // -----------------------------
   const predictUCS = async () => {
-    // Basic input validation
+    // Validation: all inputs must be filled
     for (let key in inputs) {
-      if (inputs[key] === "") {
+      if (inputs[key] === "" && key !== "PI") {
         alert(`Please enter a value for ${key}`);
         return;
       }
     }
 
-    if (!validateConstraints()) return;
+    // Check constraints
+    if (Object.keys(errors).length > 0) {
+      alert(Object.values(errors).join("\n"));
+      return;
+    }
 
     setLoading(true);
 
@@ -109,6 +127,7 @@ function App() {
       });
 
       const data = await response.json();
+
       if (data.ucs !== undefined) {
         setUcs(data.ucs);
       } else if (data.error) {
@@ -120,27 +139,6 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleReset = () => {
-    setInputs({
-      Clay_Content: "",
-      Silt_Content: "",
-      LL: "",
-      PL: "",
-      PI: "",
-      SiO2: "",
-      Al2O3: "",
-      Fe2O3: "",
-      MgO: "",
-      CaO: "",
-      CaO_lime: "",
-      Mixing: "",
-      Curing_Days: "",
-      Water_Content: "",
-    });
-    setErrors({ claySilt: "", mixing: "" });
-    setUcs(null);
   };
 
   return (
@@ -181,25 +179,31 @@ function App() {
               name={key}
               value={inputs[key]}
               onChange={handleChange}
-              disabled={key === "PI"} // PI auto-calculated
+              readOnly={key === "PI"} // PI auto-calculated
               style={{
                 width: "100%",
                 padding: "8px",
                 fontSize: "16px",
                 borderRadius: "5px",
-                border: "1px solid #ccc",
+                border:
+                  (key === "Clay_Content" || key === "Silt_Content") &&
+                  errors.Clay_Silt
+                    ? "2px solid red"
+                    : key === "Mixing" && errors.Mixing
+                    ? "2px solid red"
+                    : "1px solid #ccc",
               }}
             />
-            {/* Show error messages */}
-            {key === "Clay_Content" || key === "Silt_Content" ? (
-              <div style={{ color: "red", fontSize: "12px" }}>{errors.claySilt}</div>
-            ) : null}
-            {key === "Mixing" ? (
-              <div style={{ color: "red", fontSize: "12px" }}>{errors.mixing}</div>
-            ) : null}
           </div>
         ))}
       </div>
+
+      {/* Show error messages */}
+      {Object.keys(errors).map((err) => (
+        <p key={err} style={{ color: "red", marginTop: "10px" }}>
+          {errors[err]}
+        </p>
+      ))}
 
       <div style={{ marginTop: "25px", display: "flex", gap: "15px" }}>
         <button
