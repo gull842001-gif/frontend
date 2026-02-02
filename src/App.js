@@ -73,7 +73,8 @@ function App() {
       // -----------------------------
       // Replace this with your ngrok URL
       // -----------------------------
-      const NGROK_URL = "https://ucs-backend-production.up.railway.app/predict";
+      const NGROK_URL = "https://ucs-backend.username.repl.co/predict";
+
 
 
 
