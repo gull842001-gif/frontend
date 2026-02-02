@@ -73,7 +73,8 @@ function App() {
       // -----------------------------
       // Replace this with your ngrok URL
       // -----------------------------
-      const NGROK_URL = "https://ucs-backend.username.repl.co/predict";
+      const NGROK_URL = "https://247b140a-78a5-40ca-aeb5-107005428cbc-00-1gqdyd4psx6zz.sisko.replit.dev/predict";
+
 
 
 
